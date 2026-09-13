@@ -92,17 +92,28 @@ def energy_mean_db(levels: list[float], weights: Optional[list[float]] = None) -
     return 10.0 * math.log10(energy / total_weight)
 
 
-def weighted_percentile_db(levels: list[float], weights: list[float], percentile: float) -> float:
-    """Nearest-rank percentile with cumulative weights (L90 uses p=90)."""
+def exceeded_level_db(levels: list[float], weights: list[float], exceed_fraction: float) -> float:
+    """Return the level exceeded for ``exceed_fraction`` of weighted duration.
+
+    L90 is a low, background-side statistic.  Starting from the lowest observed
+    level, it is the last level for which the duration *strictly above* the
+    level remains at least 90% of the total weighted duration.  Using the
+    90th cumulative rank by mistake returns the background-complement L10.
+    """
     order = sorted(range(len(levels)), key=lambda i: levels[i])
-    total = sum(weights)
-    target = total * percentile / 100.0
-    cumulative = 0.0
-    for index in order:
-        cumulative += weights[index]
-        if cumulative >= target - 1e-12:
-            return levels[index]
-    return levels[order[-1]]
+    total_weight = sum(weights)
+    if total_weight <= 0:
+        raise ValueError("total acoustic weight must be positive")
+    above_weight = total_weight
+    selected = levels[order[0]]
+    for rank, index in enumerate(order):
+        # At level[index], later ranks carry the duration strictly above it.
+        above_weight -= weights[index]
+        if above_weight + 1e-12 >= total_weight * exceed_fraction:
+            selected = levels[index]
+        else:
+            break
+    return selected
 
 
 def get_zone(name: str) -> Optional[ZoneInfo]:
@@ -337,7 +348,9 @@ def validate_raw_sequence(samples: list[Sample]) -> tuple[list[tuple[datetime, d
     for previous, current in zip(samples, samples[1:]):
         if current.timestamp <= previous.timestamp:
             bad = True
-            bad_ranges.append((previous.timestamp, current.timestamp))
+            bad_ranges.append(
+                (min(previous.timestamp, current.timestamp), max(previous.timestamp, current.timestamp))
+            )
     return bad_ranges, bad
 
 
@@ -615,11 +628,12 @@ def choose_background(
 def correction_for_difference(difference: Optional[float], rules: Any) -> tuple[Optional[float], bool, str]:
     if difference is None:
         return None, False, "No comparable background level."
-    if difference < rules.background_difference_invalid_below_db:
+    minimum = rules.min_background_difference_db
+    if difference < minimum - 1e-9:
         return (
             None,
             False,
-            f"Source-to-background difference {difference:.2f} dB is below {rules.background_difference_invalid_below_db:.1f} dB; no valid correction.",
+            f"Source-to-background difference {difference:.2f} dB is below minimum {minimum:.1f} dB; no valid correction.",
         )
     keys = sorted(rules.background_corrections)
     selected = None
@@ -684,7 +698,7 @@ def compute_metrics(
         return MetricSet(), [], total_seconds(retained_ranges)
     levels = [level for _, _, level in included]
     leq = energy_mean_db(levels, weights)
-    l90 = weighted_percentile_db(levels, weights, 90)
+    l90 = exceeded_level_db(levels, weights, 0.90)
     lmax = max(levels)
     duration = total_seconds(retained_ranges)
     return (

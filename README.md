@@ -24,9 +24,9 @@ Acoustic metrics are computed from retained samples:
 
 - **Leq:** energy/time-weighted equivalent level.
 - **Lmax:** maximum retained level.
-- **L90:** weighted nearest-rank 90th-percentile exceeded level.
+- **L90:** duration-weighted level exceeded for 90% of the retained interval. It is a low/background-side statistic (the 10% cumulative rank), not the 90th percentile.
 - **Background level:** background `Leq` is used for regulatory correction; `L90` remains available in source evidence.
-- **Corrected Leq:** `Leq + table correction`. Default correction table is `{>=3 dB: -3 dB, >=5 dB: -2 dB, >=10 dB: -1 dB}`. A difference below 3 dB blocks the segment.
+- **Corrected Leq:** `Leq + table correction`. Default correction table is `{>=3 dB: -3 dB, >=5 dB: -2 dB, >=10 dB: -1 dB}`. A difference below the request's `min_background_difference_db` blocks the segment and applies no correction.
 
 Sample indexes use `sha256-position-time-level-chain-v1`. The raw root includes all submitted samples in submitted order; the effective root contains only samples included in that version's retained segments.
 

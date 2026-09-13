@@ -77,8 +77,11 @@ class RuleSet(StrictModel):
     max_rain_mm_h: Optional[float] = Field(default=0.0, ge=0)
     max_calibration_drift_db: float = Field(default=0.7, ge=0)
     max_calibration_age_seconds: Optional[float] = Field(default=None, ge=0)
-    min_background_difference_db: float = Field(default=3.0, ge=0)
-    background_difference_invalid_below_db: float = Field(default=3.0, ge=0)
+    min_background_difference_db: float = Field(
+        default=3.0,
+        ge=0,
+        description="Minimum source-minus-background margin; segments below it receive no correction.",
+    )
     required_surface: Optional[str] = None
     forbidden_ground: Optional[str] = None
     min_microphone_height_m: Optional[float] = Field(default=None, ge=0)

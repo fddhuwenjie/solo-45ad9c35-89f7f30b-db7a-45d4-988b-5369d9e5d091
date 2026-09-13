@@ -9,7 +9,7 @@ def test_valid_night_review_metrics_and_evidence(client):
     segment = body["result"]["segments"][0]
     assert segment["phase"] == "night"
     assert segment["sample_count"] == 61
-    assert segment["metrics"]["l90_db"] == 60.0
+    assert segment["metrics"]["l90_db"] == 55.0
     assert segment["metrics"]["lmax_db"] == 60.0
     assert segment["metrics"]["background_level_db"] == 49.0
     assert segment["metrics"]["background_metric"] == "Leq"
